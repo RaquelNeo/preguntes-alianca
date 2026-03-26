@@ -85,11 +85,26 @@
   .counter strong{color:var(--blue)}
   .sent-section{margin-top:22px}
   .sent-title{font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:10px}
-  .sent-item{background:white;border:1px solid var(--border);border-radius:12px;padding:12px 15px;margin-bottom:8px}
   .sent-text{font-size:.86rem;line-height:1.5;color:var(--text);margin-bottom:5px}
   .sent-meta{font-size:.72rem;color:var(--muted)}
   .tag{display:inline-block;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.4px;margin-right:5px}
   .tag-economia{background:#dbeafe;color:#1d4ed8}.tag-immigracio{background:#fef3c7;color:#b45309}.tag-independencia{background:var(--blue-pale);color:var(--blue)}.tag-social{background:#dcfce7;color:#15803d}.tag-educacio{background:#ede9fe;color:#6d28d9}.tag-altra{background:#f3f4f6;color:#6b7280}
+  .sent-item{background:white;border:1px solid var(--border);border-radius:12px;padding:12px 15px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;transition:border-color .15s,background .15s}
+  .sent-item.sel{border-color:#fca5a5;background:#fff8f8}
+  .sent-cb{width:17px;height:17px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;margin-top:3px}
+  .sent-body{flex:1;min-width:0}
+  .btn-del-sel{width:100%;background:var(--red);color:white;border:none;border-radius:12px;padding:12px;font-family:'Outfit',sans-serif;font-size:.9rem;font-weight:700;cursor:pointer;margin-top:8px;display:none}
+  .historial-wrap{margin-top:28px;padding-top:20px;border-top:2px solid var(--border)}
+  .historial-title{font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+  .day-group{margin-bottom:16px}
+  .day-header{font-size:.78rem;font-weight:700;color:var(--blue);padding:7px 10px;background:var(--blue-pale);border-radius:8px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+  .btn-del-day{font-size:.7rem;color:var(--red);background:none;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;padding:0}
+  .hist-item{background:white;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:flex-start;gap:10px}
+  .hist-body{flex:1;min-width:0}
+  .hist-text{font-size:.85rem;line-height:1.5;color:var(--text);margin-bottom:4px}
+  .hist-meta{font-size:.71rem;color:var(--muted)}
+  .btn-del-item{background:none;border:none;cursor:pointer;color:#d1d5db;font-size:1rem;flex-shrink:0;padding:0;line-height:1;transition:color .15s}
+  .btn-del-item:active{color:var(--red)}
   .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--success);color:white;padding:13px 26px;border-radius:12px;font-size:.9rem;font-weight:600;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;box-shadow:0 4px 16px rgba(22,163,74,.35)}
   .toast.on{transform:translateX(-50%) translateY(0);opacity:1}
   input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 1000px white inset!important;transition:background-color 5000s ease-in-out 0s}
@@ -171,6 +186,14 @@
         <button onclick="clearSent()" style="font-size:.72rem;font-weight:600;color:var(--red);background:none;border:1px solid var(--red);border-radius:8px;padding:4px 10px;cursor:pointer;font-family:'Outfit',sans-serif">Esborrar tot</button>
       </div>
       <div id="sentList"></div>
+      <button class="btn-del-sel" id="btnDelSel" onclick="deleteSelected()">Esborrar seleccionades (<span id="selCount">0</span>)</button>
+    </div>
+    <div class="historial-wrap" id="historialWrap" style="display:none">
+      <div class="historial-title">
+        <span>Historial per dies</span>
+        <button onclick="clearAllHistorial()" style="font-size:.7rem;font-weight:600;color:var(--red);background:none;border:none;cursor:pointer;font-family:'Outfit',sans-serif">Esborrar tot l'historial</button>
+      </div>
+      <div id="historialList"></div>
     </div>
   </div>
 </div>
@@ -329,7 +352,7 @@ async function doTranscribeWhisper() {
 
 function doLogin(){const nom=document.getElementById("f-nom").value.trim();const tel=document.getElementById("f-tel").value.trim();const ciutat=document.getElementById("f-ciutat").value.trim();const fields=[["f-nom",nom],["f-tel",tel],["f-ciutat",ciutat]];let ok=true;fields.forEach(([id,val])=>{const el=document.getElementById(id);if(!val){el.classList.add("field-error");ok=false;}else{el.classList.remove("field-error");}});if(!ok)return;user={nom,tel,ciutat};localStorage.setItem("ac_user",JSON.stringify(user));showRec();}
 function doLogout(){localStorage.removeItem('ac_user');user=null;sent=[];go('s-login');}
-function showRec(){const ini=user.nom.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();document.getElementById('av').textContent=ini;document.getElementById('b-nom').textContent=user.nom;document.getElementById('b-meta').textContent=`${user.tel} · ${user.ciutat}`;go('s-rec');}
+function showRec(){const ini=user.nom.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();document.getElementById('av').textContent=ini;document.getElementById('b-nom').textContent=user.nom;document.getElementById('b-meta').textContent=`${user.tel} · ${user.ciutat}`;go('s-rec');renderHistorial();}
 function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
 function stopRec() {
   setRecordingUI(false);
@@ -347,9 +370,87 @@ function stopRec() {
   }
 }
 function clearRec(){audioBlob=null;transcribedText='';document.getElementById('audioRow').classList.remove('on');document.getElementById('audioPlayer').src='';document.getElementById('transcriptCard').classList.remove('on');document.getElementById('transcriptContent').innerHTML='';document.getElementById('actionsRow').style.display='none';document.getElementById('recTimer').textContent='0:00';document.getElementById('recStatus').textContent='Prem per gravar';document.getElementById('recStatus').classList.remove('live');}
-function sendQ(){const text=transcribedText||document.getElementById('editTxt')?.textContent?.trim()||'';if(!text||text.length<3){alert('La pregunta és massa curta.');return;}const q={id:Date.now(),text,tema:window._tema||'altra',nom:user.nom,tel:user.tel,ciutat:user.ciutat,hora:new Date().toLocaleTimeString('ca',{hour:'2-digit',minute:'2-digit'})};sent.push(q);const all=JSON.parse(localStorage.getItem('ac_questions')||'[]');all.push(q);localStorage.setItem('ac_questions',JSON.stringify(all));clearRec();toast('✓ Pregunta enviada! Gràcies.');updateSent();}
-function updateSent(){if(!sent.length)return;document.getElementById('counterRow').style.display='block';document.getElementById('countNum').textContent=sent.length;document.getElementById('sentSection').style.display='block';document.getElementById('sentList').innerHTML=sent.slice().reverse().map(q=>`<div class="sent-item"><div class="sent-text">${q.text}</div><div class="sent-meta"><span class="tag tag-${q.tema}">${q.tema}</span>${q.hora} · ${q.ciutat}</div></div>`).join('');}
-function clearSent(){sent=[];localStorage.removeItem('ac_questions');document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';document.getElementById('sentList').innerHTML='';}
+function sendQ(){const text=transcribedText||document.getElementById('editTxt')?.textContent?.trim()||'';if(!text||text.length<3){alert('La pregunta és massa curta.');return;}const now=new Date();const q={id:Date.now(),text,tema:window._tema||'altra',nom:user.nom,tel:user.tel,ciutat:user.ciutat,hora:now.toLocaleTimeString('ca',{hour:'2-digit',minute:'2-digit'}),data:now.toLocaleDateString('ca',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),dataKey:now.toISOString().slice(0,10)};sent.push(q);const all=JSON.parse(localStorage.getItem('ac_questions')||'[]');all.push(q);localStorage.setItem('ac_questions',JSON.stringify(all));clearRec();toast('✓ Pregunta enviada! Gràcies.');updateSent();}
+function updateSent(){
+  if(!sent.length)return;
+  document.getElementById('counterRow').style.display='block';
+  document.getElementById('countNum').textContent=sent.length;
+  document.getElementById('sentSection').style.display='block';
+  document.getElementById('sentList').innerHTML=sent.slice().reverse().map(q=>`
+    <div class="sent-item" id="si-${q.id}">
+      <input type="checkbox" class="sent-cb" onchange="onCbChange()" data-id="${q.id}">
+      <div class="sent-body">
+        <div class="sent-text">${q.text}</div>
+        <div class="sent-meta"><span class="tag tag-${q.tema}">${q.tema}</span>${q.hora} · ${q.ciutat}</div>
+      </div>
+    </div>`).join('');
+  renderHistorial();
+}
+function onCbChange(){
+  const cbs=document.querySelectorAll('.sent-cb:checked');
+  const n=cbs.length;
+  document.querySelectorAll('.sent-cb').forEach(cb=>{
+    const item=document.getElementById('si-'+cb.dataset.id);
+    if(item) item.classList.toggle('sel',cb.checked);
+  });
+  const btn=document.getElementById('btnDelSel');
+  btn.style.display=n>0?'block':'none';
+  document.getElementById('selCount').textContent=n;
+}
+function deleteSelected(){
+  const ids=[...document.querySelectorAll('.sent-cb:checked')].map(cb=>Number(cb.dataset.id));
+  sent=sent.filter(q=>!ids.includes(q.id));
+  const all=JSON.parse(localStorage.getItem('ac_questions')||'[]').filter(q=>!ids.includes(q.id));
+  localStorage.setItem('ac_questions',JSON.stringify(all));
+  if(!sent.length){document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';}
+  else{document.getElementById('countNum').textContent=sent.length;}
+  updateSent();
+}
+function clearSent(){sent=[];const all=JSON.parse(localStorage.getItem('ac_questions')||'[]').filter(q=>q.dataKey!==new Date().toISOString().slice(0,10));localStorage.setItem('ac_questions',JSON.stringify(all));document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';document.getElementById('sentList').innerHTML='';renderHistorial();}
+function renderHistorial(){
+  const all=JSON.parse(localStorage.getItem('ac_questions')||'[]');
+  if(!all.length){document.getElementById('historialWrap').style.display='none';return;}
+  document.getElementById('historialWrap').style.display='block';
+  const byDay={};
+  all.forEach(q=>{const k=q.dataKey||'Sense data';if(!byDay[k])byDay[k]=[];byDay[k].push(q);});
+  const keys=Object.keys(byDay).sort().reverse();
+  document.getElementById('historialList').innerHTML=keys.map(k=>{
+    const qs=byDay[k];
+    const label=qs[0].data||k;
+    const items=qs.slice().reverse().map(q=>`
+      <div class="hist-item" id="hi-${q.id}">
+        <div class="hist-body">
+          <div class="hist-text">${q.text}</div>
+          <div class="hist-meta"><span class="tag tag-${q.tema}">${q.tema}</span>${q.hora} · ${q.nom} · ${q.ciutat}</div>
+        </div>
+        <button class="btn-del-item" onclick="deleteHistQ(${q.id})" title="Esborrar">✕</button>
+      </div>`).join('');
+    return `<div class="day-group">
+      <div class="day-header">
+        <span>${label}</span>
+        <button class="btn-del-day" onclick="deleteHistDay('${k}')">Esborrar dia</button>
+      </div>
+      ${items}
+    </div>`;
+  }).join('');
+}
+function deleteHistQ(id){
+  const all=JSON.parse(localStorage.getItem('ac_questions')||'[]').filter(q=>q.id!==id);
+  localStorage.setItem('ac_questions',JSON.stringify(all));
+  sent=sent.filter(q=>q.id!==id);
+  if(!sent.length){document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';}
+  else{document.getElementById('countNum').textContent=sent.length;document.getElementById('sentList').innerHTML=document.getElementById('sentList').innerHTML.replace(document.getElementById('si-'+id)?.outerHTML||'','');}
+  updateSent();
+}
+function deleteHistDay(key){
+  const all=JSON.parse(localStorage.getItem('ac_questions')||'[]').filter(q=>(q.dataKey||'Sense data')!==key);
+  localStorage.setItem('ac_questions',JSON.stringify(all));
+  sent=sent.filter(q=>(q.dataKey||'Sense data')!==key);
+  if(!sent.length){document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';}
+  else{document.getElementById('countNum').textContent=sent.length;}
+  updateSent();
+}
+function clearAllHistorial(){if(!confirm('Esborrar tot l\'historial?'))return;localStorage.removeItem('ac_questions');sent=[];document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';document.getElementById('historialWrap').style.display='none';}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000);}
 
 // ── MUNICIPIS AUTOCOMPLETE ──
