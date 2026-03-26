@@ -92,6 +92,8 @@
   .tag-economia{background:#dbeafe;color:#1d4ed8}.tag-immigracio{background:#fef3c7;color:#b45309}.tag-independencia{background:var(--blue-pale);color:var(--blue)}.tag-social{background:#dcfce7;color:#15803d}.tag-educacio{background:#ede9fe;color:#6d28d9}.tag-altra{background:#f3f4f6;color:#6b7280}
   .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--success);color:white;padding:13px 26px;border-radius:12px;font-size:.9rem;font-weight:600;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;box-shadow:0 4px 16px rgba(22,163,74,.35)}
   .toast.on{transform:translateX(-50%) translateY(0);opacity:1}
+  input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 1000px white inset!important;transition:background-color 5000s ease-in-out 0s}
+  input.field-error{border-color:var(--red)!important;box-shadow:0 0 0 3px rgba(192,57,43,.1)!important}
 </style>
 </head>
 <body>
@@ -172,6 +174,8 @@
 
 <script>
 let user=null,sent=[];
+const _saved=localStorage.getItem("ac_user");if(_saved){try{user=JSON.parse(_saved);}catch(e){localStorage.removeItem("ac_user");}}
+window.addEventListener("DOMContentLoaded",()=>{if(user)showRec();});
 let recognition = null;
 let isRecording = false;
 let recInterval = null;
@@ -292,6 +296,7 @@ async function startMediaRecorder() {
   } catch(e) { alert('Cal donar permís de micròfon.'); }
 }
 
+function doLogin(){const nom=document.getElementById("f-nom").value.trim();const tel=document.getElementById("f-tel").value.trim();const ciutat=document.getElementById("f-ciutat").value.trim();const fields=[["f-nom",nom],["f-tel",tel],["f-ciutat",ciutat]];let ok=true;fields.forEach(([id,val])=>{const el=document.getElementById(id);if(!val){el.classList.add("field-error");ok=false;}else{el.classList.remove("field-error");}});if(!ok)return;user={nom,tel,ciutat};localStorage.setItem("ac_user",JSON.stringify(user));showRec();}
 function doLogout(){localStorage.removeItem('ac_user');user=null;sent=[];go('s-login');}
 function showRec(){const ini=user.nom.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();document.getElementById('av').textContent=ini;document.getElementById('b-nom').textContent=user.nom;document.getElementById('b-meta').textContent=`${user.tel} · ${user.ciutat}`;go('s-rec');}
 function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
