@@ -185,6 +185,9 @@ let audioBlob = null;
 let mediaRecorder = null;
 let audioChunks = [];
 
+// ── iOS Safari → webkitSpeechRecognition | Android/Chrome → MediaRecorder + Whisper ──
+const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
 function toggleRec() {
   try { getAudioCtx(); } catch(e) {}
   if (!isRecording) startRec();
@@ -196,79 +199,46 @@ function startRec() {
   document.getElementById('transcriptCard').classList.remove('on');
   document.getElementById('actionsRow').style.display = 'none';
   document.getElementById('audioRow').classList.remove('on');
+  if (_isIOS) startWebSpeech();
+  else startMediaRecorder();
+}
 
-  // Try Web Speech API first (works on Safari iOS)
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  
-  if (SpeechRecognition) {
-    recognition = new SpeechRecognition();
-    recognition.lang = 'ca-ES';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-
-    let finalTranscript = '';
-    let interimTranscript = '';
-
-    recognition.onresult = (event) => {
-      interimTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript + ' ';
-        } else {
-          interimTranscript += event.results[i][0].transcript;
-        }
-      }
-      transcribedText = (finalTranscript + interimTranscript).trim();
-      // Show live transcription
-      const card = document.getElementById('transcriptCard');
-      const content = document.getElementById('transcriptContent');
-      card.classList.add('on');
-      content.innerHTML = `<div class="transcript-body" id="editTxt" contenteditable="true">${transcribedText}</div><div class="transcript-hint" style="color:var(--blue);font-size:.72rem;margin-top:6px">🎙 Escoltant en temps real...</div>`;
-    };
-
-    recognition.onerror = (e) => {
-      console.log('Speech error:', e.error);
-      if (e.error === 'not-allowed') alert('Cal donar permís de micròfon.');
-    };
-
-    recognition.onend = () => {
-      if (isRecording) recognition.start(); // keep going
-    };
-
-    recognition.start();
-    isRecording = true;
-    recSecs = 0;
-    document.getElementById('recBtn').classList.add('recording');
-    document.getElementById('ico-mic').style.display = 'none';
-    document.getElementById('ico-stop').style.display = 'block';
-    document.getElementById('recStatus').textContent = 'Gravant...';
-    document.getElementById('recStatus').classList.add('live');
-    document.getElementById('waveform').classList.add('on');
-    document.getElementById('recLight').style.display = 'block';
-    document.getElementById('recLightTxt').style.display = 'block';
-    playBeep(880, 80); setTimeout(() => playBeep(1100, 80), 120);
-    recInterval = setInterval(() => {
-      recSecs++;
-      const m = Math.floor(recSecs / 60), s = recSecs % 60;
-      document.getElementById('recTimer').textContent = `${m}:${String(s).padStart(2, '0')}`;
-    }, 1000);
-
-  } else {
-    // Fallback: MediaRecorder + Whisper
-    startMediaRecorder();
-  }
+function startWebSpeech() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('Aquest navegador no suporta la gravació. Prova Safari.'); return; }
+  recognition = new SR();
+  recognition.lang = 'ca-ES';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+  let finalTranscript = '';
+  recognition.onresult = (event) => {
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript + ' ';
+      else interim += event.results[i][0].transcript;
+    }
+    transcribedText = (finalTranscript + interim).trim();
+    showLiveTranscript(transcribedText);
+  };
+  recognition.onerror = (e) => {
+    if (e.error === 'not-allowed') alert('Cal donar permís de micròfon.');
+  };
+  recognition.onend = () => { if (isRecording) recognition.start(); };
+  recognition.start();
+  setRecordingUI(true);
 }
 
 async function startMediaRecorder() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mimeType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' :
-                     MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
+                     MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
+                     MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
     mediaRecorder = mimeType ? new MediaRecorder(stream, {mimeType}) : new MediaRecorder(stream);
     audioChunks = [];
     window._mimeType = mediaRecorder.mimeType || 'audio/webm';
-    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
     mediaRecorder.onstop = () => {
       audioBlob = new Blob(audioChunks, { type: window._mimeType });
       document.getElementById('audioPlayer').src = URL.createObjectURL(audioBlob);
@@ -277,7 +247,13 @@ async function startMediaRecorder() {
       doTranscribeWhisper();
     };
     mediaRecorder.start();
-    isRecording = true;
+    setRecordingUI(true);
+  } catch(e) { alert('Cal donar permís de micròfon.'); }
+}
+
+function setRecordingUI(active) {
+  isRecording = active;
+  if (active) {
     recSecs = 0;
     document.getElementById('recBtn').classList.add('recording');
     document.getElementById('ico-mic').style.display = 'none';
@@ -293,14 +269,80 @@ async function startMediaRecorder() {
       const m = Math.floor(recSecs / 60), s = recSecs % 60;
       document.getElementById('recTimer').textContent = `${m}:${String(s).padStart(2, '0')}`;
     }, 1000);
-  } catch(e) { alert('Cal donar permís de micròfon.'); }
+  } else {
+    clearInterval(recInterval);
+    document.getElementById('recBtn').classList.remove('recording');
+    document.getElementById('ico-mic').style.display = 'block';
+    document.getElementById('ico-stop').style.display = 'none';
+    document.getElementById('waveform').classList.remove('on');
+    document.getElementById('recLight').style.display = 'none';
+    document.getElementById('recLightTxt').style.display = 'none';
+    playBeep(1100, 80); setTimeout(() => playBeep(880, 80), 120);
+  }
+}
+
+function showLiveTranscript(text) {
+  const card = document.getElementById('transcriptCard');
+  const tcontent = document.getElementById('transcriptContent');
+  card.classList.add('on');
+  tcontent.innerHTML = `<div class="transcript-body" id="editTxt" contenteditable="true">${text}</div><div class="transcript-hint" style="color:var(--blue);font-size:.72rem;margin-top:6px">🎙 Escoltant en temps real...</div>`;
+}
+
+function showFinalTranscript(text) {
+  const card = document.getElementById('transcriptCard');
+  const tcontent = document.getElementById('transcriptContent');
+  card.classList.add('on');
+  tcontent.innerHTML = `<div class="transcript-body" id="editTxt" contenteditable="true">${text}</div><div class="transcript-hint">Pots editar el text abans d'enviar.</div>`;
+  document.getElementById('actionsRow').style.display = 'flex';
+}
+
+async function doTranscribeWhisper() {
+  const tcontent = document.getElementById('transcriptContent');
+  document.getElementById('transcriptCard').classList.add('on');
+  tcontent.innerHTML = '<div class="loading-row"><div class="spinner"></div><span>Transcrivint àudio...</span></div>';
+  try {
+    const ext = (window._mimeType || '').includes('mp4') ? 'm4a' : 'webm';
+    const file = new File([audioBlob], `audio.${ext}`, { type: window._mimeType });
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('model', 'whisper-1');
+    fd.append('language', 'ca');
+    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer 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' },
+      body: fd
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    transcribedText = (data.text || '').trim();
+    document.getElementById('recStatus').textContent = 'Transcripció completada ✓';
+    showFinalTranscript(transcribedText);
+  } catch(e) {
+    console.error('Whisper error:', e);
+    tcontent.innerHTML = '<div class="transcript-hint" style="color:var(--red)">Error en la transcripció. Torna a intentar-ho.</div>';
+    document.getElementById('recStatus').textContent = 'Error en la transcripció';
+  }
 }
 
 function doLogin(){const nom=document.getElementById("f-nom").value.trim();const tel=document.getElementById("f-tel").value.trim();const ciutat=document.getElementById("f-ciutat").value.trim();const fields=[["f-nom",nom],["f-tel",tel],["f-ciutat",ciutat]];let ok=true;fields.forEach(([id,val])=>{const el=document.getElementById(id);if(!val){el.classList.add("field-error");ok=false;}else{el.classList.remove("field-error");}});if(!ok)return;user={nom,tel,ciutat};localStorage.setItem("ac_user",JSON.stringify(user));showRec();}
 function doLogout(){localStorage.removeItem('ac_user');user=null;sent=[];go('s-login');}
 function showRec(){const ini=user.nom.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();document.getElementById('av').textContent=ini;document.getElementById('b-nom').textContent=user.nom;document.getElementById('b-meta').textContent=`${user.tel} · ${user.ciutat}`;go('s-rec');}
 function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
-function stopRec(){if(mediaRecorder?.state!=='inactive')mediaRecorder.stop();clearInterval(recInterval);isRecording=false;document.getElementById('recBtn').classList.remove('recording');document.getElementById('ico-mic').style.display='block';document.getElementById('ico-stop').style.display='none';document.getElementById('recStatus').textContent='Gravació completada ✓';document.getElementById('recStatus').classList.remove('live');document.getElementById('waveform').classList.remove('on');document.getElementById('recLight').style.display='none';document.getElementById('recLightTxt').style.display='none';playBeep(1100,80);setTimeout(()=>playBeep(880,80),120);}
+function stopRec() {
+  setRecordingUI(false);
+  if (_isIOS) {
+    if (recognition) { recognition.onend = null; recognition.stop(); recognition = null; }
+    document.getElementById('recStatus').textContent = 'Gravació completada ✓';
+    document.getElementById('recStatus').classList.remove('live');
+    if (transcribedText) showFinalTranscript(transcribedText);
+  } else {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      document.getElementById('recStatus').textContent = 'Processant àudio...';
+      document.getElementById('recStatus').classList.remove('live');
+      mediaRecorder.stop();
+    }
+  }
+}
 function clearRec(){audioBlob=null;transcribedText='';document.getElementById('audioRow').classList.remove('on');document.getElementById('audioPlayer').src='';document.getElementById('transcriptCard').classList.remove('on');document.getElementById('actionsRow').style.display='none';document.getElementById('recTimer').textContent='0:00';document.getElementById('recStatus').textContent='Prem per gravar';document.getElementById('recStatus').classList.remove('live');}
 function sendQ(){const text=transcribedText||document.getElementById('editTxt')?.textContent?.trim()||'';if(!text||text.length<3){alert('La pregunta és massa curta.');return;}const q={id:Date.now(),text,tema:window._tema||'altra',nom:user.nom,tel:user.tel,ciutat:user.ciutat,hora:new Date().toLocaleTimeString('ca',{hour:'2-digit',minute:'2-digit'})};sent.push(q);const all=JSON.parse(localStorage.getItem('ac_questions')||'[]');all.push(q);localStorage.setItem('ac_questions',JSON.stringify(all));clearRec();toast('✓ Pregunta enviada! Gràcies.');updateSent();}
 function updateSent(){if(!sent.length)return;document.getElementById('counterRow').style.display='block';document.getElementById('countNum').textContent=sent.length;document.getElementById('sentSection').style.display='block';document.getElementById('sentList').innerHTML=sent.slice().reverse().map(q=>`<div class="sent-item"><div class="sent-text">${q.text}</div><div class="sent-meta"><span class="tag tag-${q.tema}">${q.tema}</span>${q.hora} · ${q.ciutat}</div></div>`).join('');}
