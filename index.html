@@ -171,22 +171,132 @@
 </div>
 
 <script>
-let user=null,mediaRecorder=null,audioChunks=[],recInterval=null,recSecs=0,audioBlob=null,isRecording=false,transcribedText='',sent=[];
-(function(){const s=localStorage.getItem('ac_user');if(s){user=JSON.parse(s);showRec();}})();
-function doLogin(){const nom=document.getElementById('f-nom').value.trim(),tel=document.getElementById('f-tel').value.trim(),ciutat=document.getElementById('f-ciutat').value.trim();if(!nom||!tel||!ciutat){alert('Omple tots els camps.');return;}user={nom,tel,ciutat};localStorage.setItem('ac_user',JSON.stringify(user));showRec();}
+let user=null,sent=[];
+let recognition = null;
+let isRecording = false;
+let recInterval = null;
+let recSecs = 0;
+let transcribedText = '';
+let audioBlob = null;
+let mediaRecorder = null;
+let audioChunks = [];
+
+function toggleRec() {
+  try { getAudioCtx(); } catch(e) {}
+  if (!isRecording) startRec();
+  else stopRec();
+}
+
+function startRec() {
+  transcribedText = '';
+  document.getElementById('transcriptCard').classList.remove('on');
+  document.getElementById('actionsRow').style.display = 'none';
+  document.getElementById('audioRow').classList.remove('on');
+
+  // Try Web Speech API first (works on Safari iOS)
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  
+  if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.lang = 'ca-ES';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    let finalTranscript = '';
+    let interimTranscript = '';
+
+    recognition.onresult = (event) => {
+      interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript + ' ';
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      transcribedText = (finalTranscript + interimTranscript).trim();
+      // Show live transcription
+      const card = document.getElementById('transcriptCard');
+      const content = document.getElementById('transcriptContent');
+      card.classList.add('on');
+      content.innerHTML = `<div class="transcript-body" id="editTxt" contenteditable="true">${transcribedText}</div><div class="transcript-hint" style="color:var(--blue);font-size:.72rem;margin-top:6px">🎙 Escoltant en temps real...</div>`;
+    };
+
+    recognition.onerror = (e) => {
+      console.log('Speech error:', e.error);
+      if (e.error === 'not-allowed') alert('Cal donar permís de micròfon.');
+    };
+
+    recognition.onend = () => {
+      if (isRecording) recognition.start(); // keep going
+    };
+
+    recognition.start();
+    isRecording = true;
+    recSecs = 0;
+    document.getElementById('recBtn').classList.add('recording');
+    document.getElementById('ico-mic').style.display = 'none';
+    document.getElementById('ico-stop').style.display = 'block';
+    document.getElementById('recStatus').textContent = 'Gravant...';
+    document.getElementById('recStatus').classList.add('live');
+    document.getElementById('waveform').classList.add('on');
+    document.getElementById('recLight').style.display = 'block';
+    document.getElementById('recLightTxt').style.display = 'block';
+    playBeep(880, 80); setTimeout(() => playBeep(1100, 80), 120);
+    recInterval = setInterval(() => {
+      recSecs++;
+      const m = Math.floor(recSecs / 60), s = recSecs % 60;
+      document.getElementById('recTimer').textContent = `${m}:${String(s).padStart(2, '0')}`;
+    }, 1000);
+
+  } else {
+    // Fallback: MediaRecorder + Whisper
+    startMediaRecorder();
+  }
+}
+
+async function startMediaRecorder() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' :
+                     MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+    mediaRecorder = mimeType ? new MediaRecorder(stream, {mimeType}) : new MediaRecorder(stream);
+    audioChunks = [];
+    window._mimeType = mediaRecorder.mimeType || 'audio/webm';
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      audioBlob = new Blob(audioChunks, { type: window._mimeType });
+      document.getElementById('audioPlayer').src = URL.createObjectURL(audioBlob);
+      document.getElementById('audioRow').classList.add('on');
+      stream.getTracks().forEach(t => t.stop());
+      doTranscribeWhisper();
+    };
+    mediaRecorder.start();
+    isRecording = true;
+    recSecs = 0;
+    document.getElementById('recBtn').classList.add('recording');
+    document.getElementById('ico-mic').style.display = 'none';
+    document.getElementById('ico-stop').style.display = 'block';
+    document.getElementById('recStatus').textContent = 'Gravant...';
+    document.getElementById('recStatus').classList.add('live');
+    document.getElementById('waveform').classList.add('on');
+    document.getElementById('recLight').style.display = 'block';
+    document.getElementById('recLightTxt').style.display = 'block';
+    playBeep(880, 80); setTimeout(() => playBeep(1100, 80), 120);
+    recInterval = setInterval(() => {
+      recSecs++;
+      const m = Math.floor(recSecs / 60), s = recSecs % 60;
+      document.getElementById('recTimer').textContent = `${m}:${String(s).padStart(2, '0')}`;
+    }, 1000);
+  } catch(e) { alert('Cal donar permís de micròfon.'); }
+}
+
 function doLogout(){localStorage.removeItem('ac_user');user=null;sent=[];go('s-login');}
 function showRec(){const ini=user.nom.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();document.getElementById('av').textContent=ini;document.getElementById('b-nom').textContent=user.nom;document.getElementById('b-meta').textContent=`${user.tel} · ${user.ciutat}`;go('s-rec');}
 function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
-async function toggleRec(){try{getAudioCtx();}catch(e){}if(!isRecording)await startRec();else stopRec();}
-async function startRec(){try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});// Detect best format for browser
-const mimeType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' :
-                 MediaRecorder.isTypeSupported('audio/aac') ? 'audio/aac' :
-                 MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
-mediaRecorder = mimeType ? new MediaRecorder(stream, {mimeType}) : new MediaRecorder(stream);
-audioChunks=[];transcribedText='';window._mimeType=mediaRecorder.mimeType||'audio/webm';document.getElementById('transcriptCard').classList.remove('on');document.getElementById('actionsRow').style.display='none';document.getElementById('audioRow').classList.remove('on');mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);mediaRecorder.onstop=()=>{audioBlob=new Blob(audioChunks,{type:window._mimeType||'audio/webm'});document.getElementById('audioPlayer').src=URL.createObjectURL(audioBlob);document.getElementById('audioRow').classList.add('on');stream.getTracks().forEach(t=>t.stop());doTranscribe();};mediaRecorder.start();isRecording=true;recSecs=0;document.getElementById('recBtn').classList.add('recording');document.getElementById('ico-mic').style.display='none';document.getElementById('ico-stop').style.display='block';document.getElementById('recStatus').textContent='Gravant...';document.getElementById('recStatus').classList.add('live');document.getElementById('waveform').classList.add('on');document.getElementById('recLight').style.display='block';document.getElementById('recLightTxt').style.display='block';playBeep(880,80);setTimeout(()=>playBeep(1100,80),120);recInterval=setInterval(()=>{recSecs++;const m=Math.floor(recSecs/60),s=recSecs%60;document.getElementById('recTimer').textContent=`${m}:${String(s).padStart(2,'0')}`;},1000);}catch(e){alert('Cal donar permís de micròfon.');}}
 function stopRec(){if(mediaRecorder?.state!=='inactive')mediaRecorder.stop();clearInterval(recInterval);isRecording=false;document.getElementById('recBtn').classList.remove('recording');document.getElementById('ico-mic').style.display='block';document.getElementById('ico-stop').style.display='none';document.getElementById('recStatus').textContent='Gravació completada ✓';document.getElementById('recStatus').classList.remove('live');document.getElementById('waveform').classList.remove('on');document.getElementById('recLight').style.display='none';document.getElementById('recLightTxt').style.display='none';playBeep(1100,80);setTimeout(()=>playBeep(880,80),120);}
 function clearRec(){audioBlob=null;transcribedText='';document.getElementById('audioRow').classList.remove('on');document.getElementById('audioPlayer').src='';document.getElementById('transcriptCard').classList.remove('on');document.getElementById('actionsRow').style.display='none';document.getElementById('recTimer').textContent='0:00';document.getElementById('recStatus').textContent='Prem per gravar';document.getElementById('recStatus').classList.remove('live');}
-async function doTranscribe(){const card=document.getElementById('transcriptCard'),content=document.getElementById('transcriptContent');card.classList.add('on');content.innerHTML=`<div class="loading-row"><div class="spinner"></div>Transcrivint l'àudio...</div>`;try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':'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','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:400,system:`Ets un assistent de militants d'Aliança Catalana. El militant acaba de gravar una pregunta que li ha fet un ciutadà. Genera una transcripció realista d'una pregunta política en català (independència, economia, immigració, seguretat, habitatge, llengua, etc.). Respon ÚNICAMENT en JSON sense markdown: {"pregunta": "...", "tema": "economia|immigracio|independencia|social|educacio|altra"}`,messages:[{role:'user',content:'Transcriu la pregunta gravada.'}]})});const data=await res.json();const raw=data.content?.find(b=>b.type==='text')?.text||'';let r={pregunta:'',tema:'altra'};try{r=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch(e){}transcribedText=r.pregunta||'';window._tema=r.tema||'altra';content.innerHTML=`<div class="transcript-body" id="editTxt" contenteditable="true">${transcribedText}</div><div class="transcript-hint">✏️ Pots editar el text directament si cal corregir alguna cosa.</div>`;document.getElementById('editTxt').addEventListener('input',function(){transcribedText=this.textContent.trim();});document.getElementById('actionsRow').style.display='flex';}catch(e){content.innerHTML=`<div class="transcript-body" id="editTxt" contenteditable="true" style="color:#aaa;font-style:normal">Escriu aquí la pregunta manualment...</div><div class="transcript-hint">Error de transcripció. Escriu-ho manualment.</div>`;document.getElementById('editTxt').addEventListener('input',function(){transcribedText=this.textContent.trim();});document.getElementById('actionsRow').style.display='flex';}}
 function sendQ(){const text=transcribedText||document.getElementById('editTxt')?.textContent?.trim()||'';if(!text||text.length<3){alert('La pregunta és massa curta.');return;}const q={id:Date.now(),text,tema:window._tema||'altra',nom:user.nom,tel:user.tel,ciutat:user.ciutat,hora:new Date().toLocaleTimeString('ca',{hour:'2-digit',minute:'2-digit'})};sent.push(q);const all=JSON.parse(localStorage.getItem('ac_questions')||'[]');all.push(q);localStorage.setItem('ac_questions',JSON.stringify(all));clearRec();toast('✓ Pregunta enviada! Gràcies.');updateSent();}
 function updateSent(){if(!sent.length)return;document.getElementById('counterRow').style.display='block';document.getElementById('countNum').textContent=sent.length;document.getElementById('sentSection').style.display='block';document.getElementById('sentList').innerHTML=sent.slice().reverse().map(q=>`<div class="sent-item"><div class="sent-text">${q.text}</div><div class="sent-meta"><span class="tag tag-${q.tema}">${q.tema}</span>${q.hora} · ${q.ciutat}</div></div>`).join('');}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000);}
