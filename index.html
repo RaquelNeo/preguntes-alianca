@@ -166,7 +166,10 @@
     </div>
     <div class="counter" id="counterRow" style="display:none">Has enviat <strong id="countNum">0</strong> preguntes. Gràcies!</div>
     <div class="sent-section" id="sentSection" style="display:none">
-      <div class="sent-title">Enviades aquesta sessió</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="sent-title" style="margin-bottom:0">Enviades aquesta sessió</div>
+        <button onclick="clearSent()" style="font-size:.72rem;font-weight:600;color:var(--red);background:none;border:1px solid var(--red);border-radius:8px;padding:4px 10px;cursor:pointer;font-family:'Outfit',sans-serif">Esborrar tot</button>
+      </div>
       <div id="sentList"></div>
     </div>
   </div>
@@ -346,6 +349,7 @@ function stopRec() {
 function clearRec(){audioBlob=null;transcribedText='';document.getElementById('audioRow').classList.remove('on');document.getElementById('audioPlayer').src='';document.getElementById('transcriptCard').classList.remove('on');document.getElementById('transcriptContent').innerHTML='';document.getElementById('actionsRow').style.display='none';document.getElementById('recTimer').textContent='0:00';document.getElementById('recStatus').textContent='Prem per gravar';document.getElementById('recStatus').classList.remove('live');}
 function sendQ(){const text=transcribedText||document.getElementById('editTxt')?.textContent?.trim()||'';if(!text||text.length<3){alert('La pregunta és massa curta.');return;}const q={id:Date.now(),text,tema:window._tema||'altra',nom:user.nom,tel:user.tel,ciutat:user.ciutat,hora:new Date().toLocaleTimeString('ca',{hour:'2-digit',minute:'2-digit'})};sent.push(q);const all=JSON.parse(localStorage.getItem('ac_questions')||'[]');all.push(q);localStorage.setItem('ac_questions',JSON.stringify(all));clearRec();toast('✓ Pregunta enviada! Gràcies.');updateSent();}
 function updateSent(){if(!sent.length)return;document.getElementById('counterRow').style.display='block';document.getElementById('countNum').textContent=sent.length;document.getElementById('sentSection').style.display='block';document.getElementById('sentList').innerHTML=sent.slice().reverse().map(q=>`<div class="sent-item"><div class="sent-text">${q.text}</div><div class="sent-meta"><span class="tag tag-${q.tema}">${q.tema}</span>${q.hora} · ${q.ciutat}</div></div>`).join('');}
+function clearSent(){sent=[];localStorage.removeItem('ac_questions');document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';document.getElementById('sentList').innerHTML='';}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000);}
 
 // ── MUNICIPIS AUTOCOMPLETE ──
