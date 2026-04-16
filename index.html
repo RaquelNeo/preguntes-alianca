@@ -202,8 +202,8 @@
 <script>
 const SUPABASE_URL='https://ilkfcmixhrpdljjdehjd.supabase.co';
 const SUPABASE_KEY='sb_publishable_KUAYsSwTPZoeAAmMCpzi2g_J3tAHJPy';
-let supabase;
-try{supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);}catch(e){console.error('Supabase init error:',e);}
+let sb;
+try{sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);}catch(e){console.error('Supabase init error:',e);}
 
 let user=null,sent=[];
 const _saved=localStorage.getItem("ac_user");if(_saved){try{user=JSON.parse(_saved);}catch(e){localStorage.removeItem("ac_user");}}
@@ -376,7 +376,7 @@ function stopRec() {
   }
 }
 function clearRec(){audioBlob=null;transcribedText='';document.getElementById('audioRow').classList.remove('on');document.getElementById('audioPlayer').src='';document.getElementById('transcriptCard').classList.remove('on');document.getElementById('transcriptContent').innerHTML='';document.getElementById('actionsRow').style.display='none';document.getElementById('recTimer').textContent='0:00';document.getElementById('recStatus').textContent='Prem per gravar';document.getElementById('recStatus').classList.remove('live');}
-async function sendQ(){const text=transcribedText||document.getElementById('editTxt')?.textContent?.trim()||'';if(!text||text.length<3){alert('La pregunta és massa curta.');return;}const now=new Date();const q={text,tema:window._tema||'altra',nom:user.nom,tel:user.tel,ciutat:user.ciutat,hora:now.toLocaleTimeString('ca',{hour:'2-digit',minute:'2-digit'}),data:now.toLocaleDateString('ca',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),data_key:now.toISOString().slice(0,10)};const{data,error}=await supabase.from('preguntes').insert([q]).select();if(error){console.error('Supabase insert error:',error);toast('Error enviant la pregunta. Torna a intentar-ho.');return;}if(data&&data[0])sent.push(data[0]);clearRec();toast('✓ Pregunta enviada! Gràcies.');updateSent();}
+async function sendQ(){const text=transcribedText||document.getElementById('editTxt')?.textContent?.trim()||'';if(!text||text.length<3){alert('La pregunta és massa curta.');return;}const now=new Date();const q={text,tema:window._tema||'altra',nom:user.nom,tel:user.tel,ciutat:user.ciutat,hora:now.toLocaleTimeString('ca',{hour:'2-digit',minute:'2-digit'}),data:now.toLocaleDateString('ca',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),data_key:now.toISOString().slice(0,10)};const{data,error}=await sb.from('preguntes').insert([q]).select();if(error){console.error('Supabase insert error:',error);toast('Error enviant la pregunta. Torna a intentar-ho.');return;}if(data&&data[0])sent.push(data[0]);clearRec();toast('✓ Pregunta enviada! Gràcies.');updateSent();}
 function updateSent(){
   if(!sent.length)return;
   document.getElementById('counterRow').style.display='block';
@@ -406,14 +406,14 @@ function onCbChange(){
 async function deleteSelected(){
   const ids=[...document.querySelectorAll('.sent-cb:checked')].map(cb=>Number(cb.dataset.id));
   sent=sent.filter(q=>!ids.includes(q.id));
-  await supabase.from('preguntes').delete().in('id',ids);
+  await sb.from('preguntes').delete().in('id',ids);
   if(!sent.length){document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';}
   else{document.getElementById('countNum').textContent=sent.length;}
   updateSent();
 }
-async function clearSent(){const today=new Date().toISOString().slice(0,10);sent=[];await supabase.from('preguntes').delete().eq('data_key',today);document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';document.getElementById('sentList').innerHTML='';renderHistorial();}
+async function clearSent(){const today=new Date().toISOString().slice(0,10);sent=[];await sb.from('preguntes').delete().eq('data_key',today);document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';document.getElementById('sentList').innerHTML='';renderHistorial();}
 async function renderHistorial(){
-  const{data:all,error}=await supabase.from('preguntes').select('*').order('created_at',{ascending:true});
+  const{data:all,error}=await sb.from('preguntes').select('*').order('created_at',{ascending:true});
   if(error||!all||!all.length){document.getElementById('historialWrap').style.display='none';return;}
   document.getElementById('historialWrap').style.display='block';
   const byDay={};
@@ -440,7 +440,7 @@ async function renderHistorial(){
   }).join('');
 }
 async function deleteHistQ(id){
-  await supabase.from('preguntes').delete().eq('id',id);
+  await sb.from('preguntes').delete().eq('id',id);
   sent=sent.filter(q=>q.id!==id);
   if(!sent.length){document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';}
   else{document.getElementById('countNum').textContent=sent.length;document.getElementById('sentList').innerHTML=document.getElementById('sentList').innerHTML.replace(document.getElementById('si-'+id)?.outerHTML||'','');}
@@ -448,14 +448,14 @@ async function deleteHistQ(id){
   renderHistorial();
 }
 async function deleteHistDay(key){
-  await supabase.from('preguntes').delete().eq('data_key',key);
+  await sb.from('preguntes').delete().eq('data_key',key);
   sent=sent.filter(q=>(q.data_key||'Sense data')!==key);
   if(!sent.length){document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';}
   else{document.getElementById('countNum').textContent=sent.length;}
   updateSent();
   renderHistorial();
 }
-async function clearAllHistorial(){if(!confirm('Esborrar tot l\'historial?'))return;await supabase.from('preguntes').delete().neq('id',0);sent=[];document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';document.getElementById('historialWrap').style.display='none';}
+async function clearAllHistorial(){if(!confirm('Esborrar tot l\'historial?'))return;await sb.from('preguntes').delete().neq('id',0);sent=[];document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';document.getElementById('historialWrap').style.display='none';}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000);}
 </script>
 
