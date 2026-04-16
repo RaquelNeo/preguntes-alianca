@@ -492,7 +492,7 @@ function filterMunicipis(val) {
   const q = normStr(val);
   const matches = MUNICIPIS.filter(m => normStr(m).includes(q)).slice(0, 8);
   if (!matches.length) { list.style.display = 'none'; return; }
-    list.innerHTML = matches.map((m,i) => `<div data-nom="${m.replace(/"/g,'&quot;')}" onclick="selectMunicipi(this.dataset.nom)" style="padding:11px 16px;cursor:pointer;font-size:.9rem;border-bottom:1px solid #f0f4f9;transition:background .15s" onmouseenter="this.style.background='#eaf0f9'" onmouseleave="this.style.background='white'">${m}</div>`).join('');
+    list.innerHTML = matches.map((m,i) => `<div data-nom="${m.replace(/"/g,'&quot;')}" onmousedown="event.preventDefault();selectMunicipi(this.dataset.nom)" ontouchstart="event.preventDefault();selectMunicipi(this.dataset.nom)" style="padding:11px 16px;cursor:pointer;font-size:.9rem;border-bottom:1px solid #f0f4f9;transition:background .15s" onmouseenter="this.style.background='#eaf0f9'" onmouseleave="this.style.background='white'">${m}</div>`).join('');
   list.style.display = 'block';
 }
 
