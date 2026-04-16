@@ -463,7 +463,8 @@ async function deleteHistQ(id){
   renderHistorial();
 }
 async function deleteHistDay(key){
-  await sb.from('preguntes').delete().eq('data_key',key);
+  const{data:rows}=await sb.from('preguntes').select('id,data_key');
+  if(rows){const ids=rows.filter(q=>(q.data_key||'Sense data')===key).map(q=>q.id);if(ids.length)await sb.from('preguntes').delete().in('id',ids);}
   sent=sent.filter(q=>(q.data_key||'Sense data')!==key);
   if(!sent.length){document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';}
   else{document.getElementById('countNum').textContent=sent.length;}
