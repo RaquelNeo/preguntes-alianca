@@ -340,9 +340,9 @@ async function doTranscribeWhisper() {
     fd.append('file', file);
     fd.append('model', 'whisper-1');
     fd.append('language', 'ca');
-    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    const res = await fetch(SUPABASE_URL + '/functions/v1/transcribe', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer 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' },
+      headers: { 'Authorization': 'Bearer ' + SUPABASE_KEY },
       body: fd
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
