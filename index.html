@@ -131,7 +131,7 @@
     <div class="field">
       <label class="field-label">Població</label>
       <div style="position:relative">
-        <input type="text" id="f-ciutat" placeholder="Escriu el nom del municipi..." autocomplete="off" oninput="filterMunicipis(this.value)" onfocus="filterMunicipis(this.value)" onblur="setTimeout(()=>hideMunicipis(),200)" style="padding-right:36px"/>
+        <input type="text" id="f-ciutat" placeholder="Escriu el nom del municipi..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="filterMunicipis(this.value)" onfocus="filterMunicipis(this.value)" onblur="setTimeout(()=>hideMunicipis(),400)" style="padding-right:36px"/>
         <div id="municipisList" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1.5px solid var(--blue);border-top:none;border-radius:0 0 12px 12px;max-height:200px;overflow-y:auto;z-index:200;box-shadow:0 8px 20px rgba(43,74,124,0.15)"></div>
       </div>
     </div>
@@ -457,7 +457,9 @@ async function deleteHistDay(key){
 }
 async function clearAllHistorial(){if(!confirm('Esborrar tot l\'historial?'))return;await supabase.from('preguntes').delete().neq('id',0);sent=[];document.getElementById('counterRow').style.display='none';document.getElementById('sentSection').style.display='none';document.getElementById('historialWrap').style.display='none';}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000);}
+</script>
 
+<script>
 // ── MUNICIPIS AUTOCOMPLETE ──
 const MUNICIPIS = [
   "Abrera","Aguilar de Segarra","Agullana","Aiguafreda","Aiguamúrcia","Aiguaviva","Albanyà","Albi","Albinyana","Albió","Alcanar","Alcoletge","Alcoverr","Aldover","Aleixar","Alella","Alforja","Alguaire","Alhambra","Alió","Almoster","Alp","Alpens","Alt Àneu","Altafulla","Amer","Amposta","Anglès","Anglesola","Arbeca","Arbúcies","Argelaguer","Argentona","Arnes","Artés","Artesa de Lleida","Artesa de Segre","Ascó","Avià","Avinyó","Avinyonet de Puigventós","Avinyonet del Penedès",
@@ -492,7 +494,7 @@ function filterMunicipis(val) {
   const q = normStr(val);
   const matches = MUNICIPIS.filter(m => normStr(m).includes(q)).slice(0, 8);
   if (!matches.length) { list.style.display = 'none'; return; }
-    list.innerHTML = matches.map((m,i) => `<div data-nom="${m.replace(/"/g,'&quot;')}" onmousedown="event.preventDefault();selectMunicipi(this.dataset.nom)" ontouchstart="event.preventDefault();selectMunicipi(this.dataset.nom)" style="padding:11px 16px;cursor:pointer;font-size:.9rem;border-bottom:1px solid #f0f4f9;transition:background .15s" onmouseenter="this.style.background='#eaf0f9'" onmouseleave="this.style.background='white'">${m}</div>`).join('');
+    list.innerHTML = matches.map((m,i) => `<div data-nom="${m.replace(/"/g,'&quot;')}" onmousedown="event.preventDefault();selectMunicipi(this.dataset.nom)" style="padding:11px 16px;cursor:pointer;font-size:.9rem;border-bottom:1px solid #f0f4f9;transition:background .15s;-webkit-tap-highlight-color:rgba(43,74,124,0.1)" onmouseenter="this.style.background='#eaf0f9'" onmouseleave="this.style.background='white'">${m}</div>`).join('');
   list.style.display = 'block';
 }
 
