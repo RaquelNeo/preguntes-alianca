@@ -377,7 +377,20 @@ function stopRec() {
   }
 }
 function clearRec(){audioBlob=null;transcribedText='';document.getElementById('audioRow').classList.remove('on');document.getElementById('audioPlayer').src='';document.getElementById('transcriptCard').classList.remove('on');document.getElementById('transcriptContent').innerHTML='';document.getElementById('actionsRow').style.display='none';document.getElementById('recTimer').textContent='0:00';document.getElementById('recStatus').textContent='Prem per gravar';document.getElementById('recStatus').classList.remove('live');}
-// detectTopic moved to independent script block below
+function detectTopic(text){
+  const t=text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const topics={
+    economia:['economia','economic','impost','impostos','fiscal','treball','feina','atur','sou','sous','salari','preu','preus','inflacio','hipoteca','lloguer','lloguers','habitatge','pis','pisos','vivenda','deute','empresa','empreses','autonoms','comerc','industria','exportacio','importacio','pib','creixement','recessio','pressupost','pressupostos','despesa','inversi','diners','euro','euros','banc','bancs','pensio','pensions','jubilacio'],
+    immigracio:['immigracio','immigrant','immigrants','immigrats','migracio','migrant','migrants','estrangers','estranger','fronteres','frontera','refugiat','refugiats','asil','acollida','expulsio','irregular','irregulars','papers','permis de residencia','mena','menes','multicultural','integracio','deportacio','extracomunitari'],
+    independencia:['independencia','independentisme','independentista','republica','secessio','autodeterminacio','sobirania','sobira','lliure','llibertat','presos politics','exili','exiliat','referendum','1-o','primer doctubre','espanya','estat propi','dret a decidir','catalanisme','nacio','nacional','constitucio','estatut','autonomia','competencies','madrid','govern central','article 155','unionisme'],
+    social:['sanitat','hospital','hospitals','salut','metge','metges','ambulancia','urgencies','llista espera','seguretat','policia','mossos','delinquencia','robatori','violencia','droga','drogues','pobre','pobresa','desigualtat','exclusio','serveis socials','dependencia','discapacitat','gent gran','residencia','residencies','pensions','benestar','proteccio','ajuda','ong','associacio'],
+    educacio:['educacio','escola','escoles','institut','universitat','mestre','mestres','professor','professors','alumne','alumnes','estudiant','estudiants','ensenyament','formacio','beca','beques','castella','catala','llengua','immersio linguistica','guarderia','llar infants','grau','master','fp','formacio professional','curriculum','pisa','fracas escolar']
+  };
+  for(const[tema,paraules] of Object.entries(topics)){
+    if(paraules.some(p=>t.includes(p)))return tema;
+  }
+  return 'altra';
+}
 async function sendQ(){const text=transcribedText||document.getElementById('editTxt')?.textContent?.trim()||'';if(!text||text.length<3){alert('La pregunta és massa curta.');return;}const now=new Date();const tema=detectTopic(text);const q={text,tema,nom:user.nom,tel:user.tel,ciutat:user.ciutat,hora:now.toLocaleTimeString('ca',{hour:'2-digit',minute:'2-digit'}),data:now.toLocaleDateString('ca',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),data_key:now.toISOString().slice(0,10)};const{data,error}=await sb.from('preguntes').insert([q]).select();if(error){console.error('Supabase insert error:',error);toast('Error enviant la pregunta. Torna a intentar-ho.');return;}if(data&&data[0])sent.push(data[0]);clearRec();toast('✓ Pregunta enviada! Gràcies.');updateSent();}
 function updateSent(){
   if(!sent.length)return;
@@ -462,22 +475,6 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 </script>
 
 <script>
-// ── DETECT TOPIC ──
-function detectTopic(text){
-  const t=text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const topics={
-    economia:['economia','economic','impost','impostos','fiscal','treball','feina','atur','sou','sous','salari','preu','preus','inflacio','hipoteca','lloguer','lloguers','habitatge','pis','pisos','vivenda','deute','empresa','empreses','autonoms','comerc','industria','exportacio','importacio','pib','creixement','recessio','pressupost','pressupostos','despesa','inversi','diners','euro','euros','banc','bancs','pensio','pensions','jubilacio'],
-    immigracio:['immigracio','immigrant','immigrants','immigrats','migracio','migrant','migrants','estrangers','estranger','fronteres','frontera','refugiat','refugiats','asil','acollida','expulsio','irregular','irregulars','papers','permis de residencia','mena','menes','multicultural','integracio','deportacio','extracomunitari'],
-    independencia:['independencia','independentisme','independentista','republica','secessio','autodeterminacio','sobirania','sobira','lliure','llibertat','presos politics','exili','exiliat','referendum','1-o','primer doctubre','espanya','estat propi','dret a decidir','catalanisme','nacio','nacional','constitucio','estatut','autonomia','competencies','madrid','govern central','article 155','unionisme'],
-    social:['sanitat','hospital','hospitals','salut','metge','metges','ambulancia','urgencies','llista espera','seguretat','policia','mossos','delinquencia','robatori','violencia','droga','drogues','pobre','pobresa','desigualtat','exclusio','serveis socials','dependencia','discapacitat','gent gran','residencia','residencies','pensions','benestar','proteccio','ajuda','ong','associacio'],
-    educacio:['educacio','escola','escoles','institut','universitat','mestre','mestres','professor','professors','alumne','alumnes','estudiant','estudiants','ensenyament','formacio','beca','beques','castella','catala','llengua','immersio linguistica','guarderia','llar infants','grau','master','fp','formacio professional','curriculum','pisa','fracas escolar']
-  };
-  for(const[tema,paraules] of Object.entries(topics)){
-    if(paraules.some(p=>t.includes(p)))return tema;
-  }
-  return 'altra';
-}
-
 // ── MUNICIPIS AUTOCOMPLETE ──
 const MUNICIPIS = [
   "Abrera","Aguilar de Segarra","Agullana","Aiguafreda","Aiguamúrcia","Aiguaviva","Albanyà","Albi","Albinyana","Albió","Alcanar","Alcoletge","Alcoverr","Aldover","Aleixar","Alella","Alforja","Alguaire","Alhambra","Alió","Almoster","Alp","Alpens","Alt Àneu","Altafulla","Amer","Amposta","Anglès","Anglesola","Arbeca","Arbúcies","Argelaguer","Argentona","Arnes","Artés","Artesa de Lleida","Artesa de Segre","Ascó","Avià","Avinyó","Avinyonet de Puigventós","Avinyonet del Penedès",
