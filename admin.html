@@ -164,7 +164,8 @@
 <script>
 const SUPABASE_URL='https://ilkfcmixhrpdljjdehjd.supabase.co';
 const SUPABASE_KEY='sb_publishable_KUAYsSwTPZoeAAmMCpzi2g_J3tAHJPy';
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let sb;
+try{sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);}catch(e){console.error('Supabase init error:',e);}
 
 const PASS='Alian2026';
 let currentFilter='tots';

@@ -202,7 +202,8 @@
 <script>
 const SUPABASE_URL='https://ilkfcmixhrpdljjdehjd.supabase.co';
 const SUPABASE_KEY='sb_publishable_KUAYsSwTPZoeAAmMCpzi2g_J3tAHJPy';
-const supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let supabase;
+try{supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);}catch(e){console.error('Supabase init error:',e);}
 
 let user=null,sent=[];
 const _saved=localStorage.getItem("ac_user");if(_saved){try{user=JSON.parse(_saved);}catch(e){localStorage.removeItem("ac_user");}}
@@ -482,7 +483,7 @@ const MUNICIPIS = [
 ];
 
 function normStr(s) {
-  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 }
 
 function filterMunicipis(val) {
